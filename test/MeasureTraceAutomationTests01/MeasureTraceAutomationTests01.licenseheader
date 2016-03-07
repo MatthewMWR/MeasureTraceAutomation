@@ -1,0 +1,7 @@
+﻿extensions: designer.cs generated.cs
+extensions: .cs .cpp .h
+// Copyright and license at: https://github.com/MatthewMWR/MeasureTraceAutomation/blob/master/LICENSE
+extensions:  .xml .config .xsd
+<!--
+Copyright and license at: https://github.com/MatthewMWR/MeasureTraceAutomation/blob/master/LICENSE
+-->
