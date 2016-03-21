@@ -6,6 +6,8 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using MeasureTrace;
+using MeasureTrace.Adapters;
+using MeasureTrace.Calipers;
 using MeasureTrace.TraceModel;
 using MeasureTraceAutomation.Logging;
 using Microsoft.Data.Entity;
@@ -145,6 +147,7 @@ namespace MeasureTraceAutomation
                             {
                                 tj.RegisterCaliperByType<CpuSampled>();
                                 tj.RegisterCaliperByType<BootPhase>();
+                                tj.RegisterProcessorByType<GroupPolicyActionProcessor>(ProcessorTypeCollisionOption.UseExistingIfFound);
                                 var traceOut = tj.Measure();
                                 measuringResults.Add(traceOut);
                             }
