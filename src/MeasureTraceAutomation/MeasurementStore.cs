@@ -12,7 +12,6 @@ namespace MeasureTraceAutomation
     public class MeasurementStore : DbContext
     {
         private readonly MeasurementStoreConfig _measurementStoreConfig;
-
         public MeasurementStore(MeasurementStoreConfig config)
         {
             if (config == null) throw new ArgumentNullException(nameof(config));
