@@ -27,7 +27,7 @@ namespace MeasureTraceAutomation
             if (
                 Traces.Any(
                     t =>
-                        string.Equals(t.DataFileNameRelative, trace.DataFileNameRelative,
+                        string.Equals(t.PackageFileName, trace.PackageFileName,
                             StringComparison.OrdinalIgnoreCase)))
                 Traces.Update(trace);
             else Traces.Add(trace);
@@ -63,7 +63,7 @@ namespace MeasureTraceAutomation
             modelBuilder.Entity<Trace>(b =>
             {
                 b.Ignore(t => t.TraceAttributes);
-                b.HasKey(trace => trace.DataFileNameRelative);
+                b.HasKey(trace => trace.PackageFileName);
             });
             //Add measurement types to model
             var measurementTypes = new List<Type>();

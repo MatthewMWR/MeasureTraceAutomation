@@ -45,21 +45,21 @@ namespace MeasureTraceAutomation
                                     SearchOption.AllDirectories))
                         {
                             var fileInfo = new FileInfo(fileSystemEntryPath);
-                            if (!store.Traces.Any(t => string.Equals(t.DataFileNameRelative, fileInfo.Name)))
+                            if (!store.Traces.Any(t => string.Equals(t.PackageFileName, fileInfo.Name)))
                             {
                                 store.Traces.Add(new Trace
                                 {
-                                    DataFileNameRelative = fileInfo.Name,
-                                    DataPathStable =
+                                    PackageFileName = fileInfo.Name,
+                                    PackageFileNameFull = 
                                         CalculateDestinationPath(fileSystemEntryPath, processingConfig, true)
                                 });
                                 store.SaveChanges();
                             }
-                            var trace = store.Traces.First(t => string.Equals(t.DataFileNameRelative, fileInfo.Name));
+                            var trace = store.Traces.First(t => string.Equals(t.PackageFileName, fileInfo.Name));
                             if (
                                 !store.ProcessingRecords.Any(
                                     t =>
-                                        string.Equals(t.Trace.DataFileNameRelative, trace.DataFileNameRelative,
+                                        string.Equals(t.Trace.PackageFileName, trace.PackageFileName,
                                             StringComparison.OrdinalIgnoreCase)))
                             {
                                 store.ProcessingRecords.Add(new ProcessingRecord
@@ -108,7 +108,7 @@ namespace MeasureTraceAutomation
                             var processingRecord =
                                 store.ProcessingRecords.LastOrDefault(
                                     pr =>
-                                        string.Equals(pr.Trace.DataPathStable, destinationFullPath,
+                                        string.Equals(pr.Trace.PackageFileNameFull, destinationFullPath,
                                             StringComparison.OrdinalIgnoreCase));
                             if (processingRecord == null ||
                                 processingRecord.ProcessingState != ProcessingState.Discovered)
@@ -139,7 +139,7 @@ namespace MeasureTraceAutomation
                             .Take(processingConfig.ParallelMeasuringThrottle)
                             .Include(pr => pr.Trace))
                 {
-                    RichLog.Log.StartMeasureAndSaveItem(pr.Trace.DataPathStable);
+                    RichLog.Log.StartMeasureAndSaveItem(pr.Trace.PackageFileNameFull);
                     measuringTasks.Add(
                         Task.Run(() =>
                         {
@@ -165,11 +165,11 @@ namespace MeasureTraceAutomation
                     var processingRecord =
                         store.ProcessingRecords.Last(
                             pr =>
-                                string.Equals(pr.Trace.DataFileNameRelative, t.DataFileNameRelative,
+                                string.Equals(pr.Trace.PackageFileName, t.PackageFileName,
                                     StringComparison.OrdinalIgnoreCase));
                     processingRecord.ProcessingState = ProcessingState.Measured;
                     store.SaveChanges();
-                    RichLog.Log.StopMeasureAndSaveItem(t.DataPathStable, addedRows);
+                    RichLog.Log.StopMeasureAndSaveItem(t.PackageFileNameFull, addedRows);
                 }
             }
             RichLog.Log.StopMeasureAndSaveTraces(measuredCount);

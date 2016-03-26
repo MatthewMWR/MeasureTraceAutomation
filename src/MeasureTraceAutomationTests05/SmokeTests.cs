@@ -19,7 +19,7 @@ namespace MeasureTraceAutomationTests05
                 StoreType = StoreType.MicrosoftSqlServer,
                 ConnectionString = @"server=(localdb)\MSSqlLocalDb;Database=SimpleStoreTest"
             };
-            var trace = new Trace() { DataFileNameRelative = "xyz" };
+            var trace = new Trace() { PackageFileName = "xyz" };
             var measurement = new CpuSampled() { ProcessName = "Foo", IsDpc = true, Count = 100, TotalSamplesDuringInterval = 1000, CpuCoreCount = 1 };
             var measurement2 = new TraceAttribute() { Name = "FooA" };
             trace.AddMeasurement(measurement);
