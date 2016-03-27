@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿// Copyright and license at: https://github.com/MatthewMWR/MeasureTraceAutomation/blob/master/LICENSE
+using System.Reflection;
 using System.Runtime.InteropServices;
 
 // General Information about an assembly is controlled through the following 
@@ -6,7 +7,9 @@ using System.Runtime.InteropServices;
 // associated with an assembly.
 
 [assembly: AssemblyTitle("MeasureTrace")]
-[assembly: AssemblyDescription("Measuring operations of interest from event traces. Info at https://github.com/MatthewMWR/MeasureTrace")]
+[assembly:
+    AssemblyDescription(
+        "Measuring operations of interest from event traces. Info at https://github.com/MatthewMWR/MeasureTrace")]
 [assembly: AssemblyCompany("Matthew Reynolds (@MatthewMWR) from Microsoft")]
 [assembly: AssemblyCopyright("Copyright © Microsoft 2015")]
 
@@ -29,4 +32,5 @@ using System.Runtime.InteropServices;
 //
 // You can specify all the values or you can default the Build and Revision Numbers 
 // by using the '*' as shown below:
+
 [assembly: AssemblyVersion("1.0.*")]

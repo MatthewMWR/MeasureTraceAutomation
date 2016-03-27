@@ -6,6 +6,7 @@ using System.Net;
 using Xunit;
 using MeasureTraceAutomation;
 using MeasureTrace.TraceModel;
+using Microsoft.Data.Entity;
 
 namespace MeasureTraceAutomationTests05
 {
@@ -19,7 +20,7 @@ namespace MeasureTraceAutomationTests05
                 StoreType = StoreType.MicrosoftSqlServer,
                 ConnectionString = @"server=(localdb)\MSSqlLocalDb;Database=SimpleStoreTest"
             };
-            var trace = new Trace() { PackageFileName = "xyz" };
+            var trace = new MeasuredTrace() { PackageFileName = "xyz" };
             var measurement = new CpuSampled() { ProcessName = "Foo", IsDpc = true, Count = 100, TotalSamplesDuringInterval = 1000, CpuCoreCount = 1 };
             var measurement2 = new TraceAttribute() { Name = "FooA" };
             trace.AddMeasurement(measurement);
@@ -70,18 +71,23 @@ namespace MeasureTraceAutomationTests05
             DoWork.InvokeProcessingOnce(processingConfig, storeConfig);
             using (var store = new MeasurementStore(storeConfig))
             {
-                Assert.True(store.ProcessingRecords.Count() == testCopyCount + 1);
-                Assert.True(store.ProcessingRecords.Count(pr => pr.ProcessingState == ProcessingState.Measured) ==
-                            processingConfig.ParallelMeasuringThrottle);
-                Assert.True(store.ProcessingRecords.Count(pr => pr.ProcessingState == ProcessingState.Moved) ==
-                            processingConfig.ParallelMovesThrottle - processingConfig.ParallelMeasuringThrottle);
+                Assert.True(store.Traces.Count() == testCopyCount + 1);
+                var measuredCount = store.Traces
+                    .Include(t => t.ProcessingRecords)
+                    .Count(t => t.ProcessingRecords.OrderBy(pr=>pr.StateChangeTime).Last().ProcessingState == ProcessingState.Measured);
+                Assert.True( measuredCount == processingConfig.ParallelMeasuringThrottle);
+                var movedCount = store.ProcessingRecords.Count(pr => pr.ProcessingState == ProcessingState.Moved);
+                Assert.True(movedCount == processingConfig.ParallelMovesThrottle);
             }
             DoWork.InvokeProcessingOnce(processingConfig, storeConfig);
             DoWork.InvokeProcessingOnce(processingConfig, storeConfig);
             DoWork.InvokeProcessingOnce(processingConfig, storeConfig);
             using (var store = new MeasurementStore(storeConfig))
             {
-                Assert.True(store.ProcessingRecords.Count(pr => pr.ProcessingState == ProcessingState.Measured) == testCopyCount + 1);
+                var measuredCount = store.Traces
+                    .Include(t => t.ProcessingRecords)
+                    .Count(t => t.ProcessingRecords.OrderBy(pr => pr.StateChangeTime).Last().ProcessingState == ProcessingState.Measured);
+                Assert.True(measuredCount == testCopyCount + 1);
             }
 
         }

@@ -66,7 +66,7 @@ namespace MeasureTraceAutomation.Logging
 
         [Event(1071, Level = EventLevel.Warning, Channel = EventChannel.Operational,
             Message =
-                "Unable to process discovered trace {0}. \nOccasional unreadable traces are unavoidable, but if many of your traces are failing to process you should investigate. \nError detail: {1}",
+                "Unable to process discovered MeasuredTrace {0}. \nOccasional unreadable traces are unavoidable, but if many of your traces are failing to process you should investigate. \nError detail: {1}",
             Task = Tasks.TraceAnalyzeFailureDuringProcessEndToEnd)]
         public void TraceAnalyzeFailureDuringProcessEndToEnd(string path, string errorDetailDump)
         {

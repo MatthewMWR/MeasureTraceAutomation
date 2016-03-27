@@ -6,13 +6,9 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using MeasureTrace;
-using MeasureTrace.Adapters;
-using MeasureTrace.Calipers;
 using MeasureTrace.TraceModel;
 using MeasureTraceAutomation.Logging;
 using Microsoft.Data.Entity;
-using BootPhase = MeasureTrace.Calipers.BootPhase;
-using CpuSampled = MeasureTrace.Calipers.CpuSampled;
 
 namespace MeasureTraceAutomation
 {
@@ -24,7 +20,6 @@ namespace MeasureTraceAutomation
             DiscoverOneBatch(processingConfig, storeConfig);
             var moved = MoveOneBatch(processingConfig, storeConfig);
             var measured = MeasureOneBatch(processingConfig, storeConfig);
-            //PostMeasureActionOneBatch(storeConfig, PostMeasureAction);
             RichLog.Log.StopProcessEndToEnd(moved, measured);
         }
 
@@ -45,29 +40,34 @@ namespace MeasureTraceAutomation
                                     SearchOption.AllDirectories))
                         {
                             var fileInfo = new FileInfo(fileSystemEntryPath);
-                            if (!store.Traces.Any(t => string.Equals(t.PackageFileName, fileInfo.Name)))
+                            var sparseTrace = new MeasuredTrace
                             {
-                                store.Traces.Add(new Trace
-                                {
-                                    PackageFileName = fileInfo.Name,
-                                    PackageFileNameFull = 
-                                        CalculateDestinationPath(fileSystemEntryPath, processingConfig, true)
-                                });
+                                PackageFileName = fileInfo.Name,
+                                PackageFileNameFull =
+                                    CalculateDestinationPath(fileSystemEntryPath, processingConfig, true)
+                            };
+                            if (!store.Traces.Any(t => t.IsSameDataPackatge(sparseTrace)))
+                            {
+                                store.Traces.Add(sparseTrace);
                                 store.SaveChanges();
                             }
-                            var trace = store.Traces.First(t => string.Equals(t.PackageFileName, fileInfo.Name));
-                            if (
-                                !store.ProcessingRecords.Any(
-                                    t =>
-                                        string.Equals(t.Trace.PackageFileName, trace.PackageFileName,
-                                            StringComparison.OrdinalIgnoreCase)))
+                            var dbTrace = store.Traces.First(t => t.IsSameDataPackatge(sparseTrace));
+                            var lastPr =
+                                store.Set<ProcessingRecord>().Include(pr => pr.MeasuredTrace)
+                                    .Where(
+                                        pr =>
+                                            string.Equals(dbTrace.PackageFileName, pr.MeasuredTrace.PackageFileName,
+                                                StringComparison.OrdinalIgnoreCase))
+                                    .OrderBy(pr => pr.StateChangeTime)
+                                    .LastOrDefault();
+                            if (lastPr == null || lastPr.ProcessingState != ProcessingState.Discovered)
                             {
-                                store.ProcessingRecords.Add(new ProcessingRecord
+                                store.Set<ProcessingRecord>().Add(new ProcessingRecord
                                 {
-                                    Trace = trace,
-                                    DiscoverTimeUtc = DateTime.UtcNow,
-                                    DiscoveredAtPath = fileSystemEntryPath,
-                                    ProcessingState = ProcessingState.Discovered
+                                    MeasuredTrace = dbTrace,
+                                    ProcessingState = ProcessingState.Discovered,
+                                    StateChangeTime = DateTime.UtcNow,
+                                    Path = fileSystemEntryPath
                                 });
                                 store.SaveChanges();
                                 discoveredCount++;
@@ -89,13 +89,20 @@ namespace MeasureTraceAutomation
             var fileMoveTasks = new List<Task>();
             using (var store = new MeasurementStore(storeConfig))
             {
-                filesToMove.AddRange(
-                    store.ProcessingRecords.Where(pr => pr.ProcessingState == ProcessingState.Discovered)
-                        .Take(processingConfig.ParallelMovesThrottle)
-                        .Select(pr => pr.DiscoveredAtPath));
+                var inScopeTraces = store.Traces.Include(t => t.ProcessingRecords)
+                    .Where(
+                        t =>
+                            t.ProcessingRecords.OrderBy(pr => pr.StateChangeTime).Last().ProcessingState ==
+                            ProcessingState.Discovered)
+                    .Take(processingConfig.ParallelMovesThrottle);
+                foreach (var t in inScopeTraces)
+                {
+                    filesToMove.Add(t.ProcessingRecords.Latest().Path);
+                }
             }
-            foreach (var fileSourcePath in filesToMove)
+            foreach (var fileSourcePath in filesToMove.Where(p => !string.IsNullOrEmpty(p)))
             {
+                if (!File.Exists(fileSourcePath)) continue;
                 var destinationFullPath = CalculateDestinationPath(fileSourcePath, processingConfig, true);
                 fileMoveTasks.Add(
                     Task.Run(() =>
@@ -105,16 +112,19 @@ namespace MeasureTraceAutomation
                         movedCount++;
                         using (var store = new MeasurementStore(storeConfig))
                         {
-                            var processingRecord =
-                                store.ProcessingRecords.LastOrDefault(
-                                    pr =>
-                                        string.Equals(pr.Trace.PackageFileNameFull, destinationFullPath,
+                            var trace =
+                                store.Traces.First(
+                                    t =>
+                                        string.Equals(t.PackageFileNameFull, destinationFullPath,
                                             StringComparison.OrdinalIgnoreCase));
-                            if (processingRecord == null ||
-                                processingRecord.ProcessingState != ProcessingState.Discovered)
-                                throw new ApplicationException(
-                                    "Unexpected processing record state. Reference:F61F914A-0401-4E2D-9A25-CFF0B16F24FD");
-                            processingRecord.ProcessingState = ProcessingState.Moved;
+
+                            store.ProcessingRecords.Add(new ProcessingRecord
+                            {
+                                MeasuredTrace = trace,
+                                Path = destinationFullPath,
+                                StateChangeTime = DateTime.UtcNow,
+                                ProcessingState = ProcessingState.Moved
+                            });
                             store.SaveChanges();
                         }
                     }));
@@ -133,21 +143,21 @@ namespace MeasureTraceAutomation
 
             using (var store = new MeasurementStore(storeConfig))
             {
-                foreach (
-                    var pr in
-                        store.ProcessingRecords.Where(pr => pr.ProcessingState == ProcessingState.Moved)
-                            .Take(processingConfig.ParallelMeasuringThrottle)
-                            .Include(pr => pr.Trace))
+                var inScopeTraces = store.Traces.Include(t => t.ProcessingRecords)
+                    .Where(
+                        t =>
+                            t.ProcessingRecords.OrderBy(pr => pr.StateChangeTime).Last().ProcessingState ==
+                            ProcessingState.Moved)
+                    .Take(processingConfig.ParallelMeasuringThrottle);
+                foreach (var t in inScopeTraces)
                 {
-                    RichLog.Log.StartMeasureAndSaveItem(pr.Trace.PackageFileNameFull);
+                    RichLog.Log.StartMeasureAndSaveItem(t.PackageFileNameFull);
                     measuringTasks.Add(
                         Task.Run(() =>
                         {
-                            using (var tj = new TraceJob(pr.Trace))
+                            using (var tj = new TraceJob(t))
                             {
-                                tj.RegisterCaliperByType<CpuSampled>();
-                                tj.RegisterCaliperByType<BootPhase>();
-                                tj.RegisterProcessorByType<GroupPolicyActionProcessor>(ProcessorTypeCollisionOption.UseExistingIfFound);
+                                tj.RegisterCalipersAllKnown();
                                 var traceOut = tj.Measure();
                                 measuringResults.Add(traceOut);
                             }
@@ -155,19 +165,19 @@ namespace MeasureTraceAutomation
                         }));
                 }
             }
-
             Task.WaitAll(measuringTasks.ToArray());
             using (var store = new MeasurementStore(storeConfig))
             {
                 foreach (var t in measuringResults)
                 {
-                    var addedRows = store.SaveTraceAndMeasurements(t);
-                    var processingRecord =
-                        store.ProcessingRecords.Last(
-                            pr =>
-                                string.Equals(pr.Trace.PackageFileName, t.PackageFileName,
-                                    StringComparison.OrdinalIgnoreCase));
-                    processingRecord.ProcessingState = ProcessingState.Measured;
+                    var addedRows = store.SaveTraceAndMeasurements((MeasuredTrace) t);
+                    store.ProcessingRecords.Add(new ProcessingRecord
+                    {
+                        MeasuredTrace = (MeasuredTrace) t,
+                        StateChangeTime = DateTime.UtcNow,
+                        ProcessingState = ProcessingState.Measured,
+                        Path = t.PackageFileNameFull
+                    });
                     store.SaveChanges();
                     RichLog.Log.StopMeasureAndSaveItem(t.PackageFileNameFull, addedRows);
                 }

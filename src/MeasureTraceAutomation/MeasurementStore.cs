@@ -11,28 +11,30 @@ namespace MeasureTraceAutomation
 {
     public class MeasurementStore : DbContext
     {
+        public const string NameOfProcessingStateAttribute = "ProcessingState";
         private readonly MeasurementStoreConfig _measurementStoreConfig;
+
         public MeasurementStore(MeasurementStoreConfig config)
         {
             if (config == null) throw new ArgumentNullException(nameof(config));
             _measurementStoreConfig = config;
         }
 
-        public DbSet<Trace> Traces { get; set; }
+        public DbSet<MeasuredTrace> Traces { get; set; }
         public DbSet<ProcessingRecord> ProcessingRecords { get; set; }
 
-        public int SaveTraceAndMeasurements(Trace trace)
+        public int SaveTraceAndMeasurements(MeasuredTrace measuredTrace)
         {
             var changeCount = 0;
             if (
                 Traces.Any(
                     t =>
-                        string.Equals(t.PackageFileName, trace.PackageFileName,
+                        string.Equals(t.PackageFileName, measuredTrace.PackageFileName,
                             StringComparison.OrdinalIgnoreCase)))
-                Traces.Update(trace);
-            else Traces.Add(trace);
+                Traces.Update(measuredTrace);
+            else Traces.Add(measuredTrace);
             changeCount += SaveChanges();
-            foreach (var m in trace.GetMeasurementsAll())
+            foreach (var m in measuredTrace.GetMeasurementsAll())
             {
                 AddMeasurementByTypeInfer(m);
             }
@@ -60,10 +62,15 @@ namespace MeasureTraceAutomation
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<Trace>(b =>
+            modelBuilder.Ignore<Trace>();
+            modelBuilder.Entity<ProcessingRecord>().Property<string>("PackageFileName").Metadata.IsShadowProperty = true;
+            modelBuilder.Entity<MeasuredTrace>(b =>
             {
                 b.Ignore(t => t.TraceAttributes);
                 b.HasKey(trace => trace.PackageFileName);
+                b.HasMany(typeof (ProcessingRecord), "ProcessingRecords")
+                    .WithOne("MeasuredTrace")
+                    .HasForeignKey("PackageFileName");
             });
             //Add measurement types to model
             var measurementTypes = new List<Type>();
@@ -84,20 +91,12 @@ namespace MeasureTraceAutomation
             foreach (var mt in measurementTypes)
             {
                 modelBuilder.Entity(mt)
-                    .Property<string>("DataFileNameRelative")
+                    .Property<string>("PackageFileName")
                     .Metadata.IsShadowProperty = true;
-                if (mt == typeof (ProcessingRecord))
-                    modelBuilder.Entity(mt)
-                        .HasOne(typeof (Trace), "Trace")
-                        .WithOne()
-                        .HasForeignKey("DataFileNameRelative");
-                else
-                {
-                    modelBuilder.Entity(mt)
-                        .HasOne(typeof (Trace), "Trace")
-                        .WithMany()
-                        .HasForeignKey("DataFileNameRelative");
-                }
+                modelBuilder.Entity(mt)
+                    .HasOne(typeof (MeasuredTrace), "Trace")
+                    .WithMany()
+                    .HasForeignKey("PackageFileName");
                 modelBuilder.Entity(mt).HasKey("Id");
                 modelBuilder.Entity(mt).Property<int>("Id").ValueGeneratedOnAdd();
                 foreach (var noSetProperty in mt.GetProperties().Where(pi => pi.SetMethod == null))
