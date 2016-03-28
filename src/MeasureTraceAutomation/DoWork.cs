@@ -113,10 +113,10 @@ namespace MeasureTraceAutomation
                         using (var store = new MeasurementStore(storeConfig))
                         {
                             var trace =
-                                store.Traces.First(
+                                store.Traces.Where(
                                     t =>
                                         string.Equals(t.PackageFileNameFull, destinationFullPath,
-                                            StringComparison.OrdinalIgnoreCase));
+                                            StringComparison.OrdinalIgnoreCase)).Single();
 
                             store.ProcessingRecords.Add(new ProcessingRecord
                             {
