@@ -49,8 +49,8 @@
       <HintPath>packages\JetBrains.Annotations.10.1.2-eap\lib\net20\JetBrains.Annotations.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="MeasureTrace, Version=1.0.5929.11644, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>packages\MeasureTrace.1.0.5929.11644-alpha\lib\net461\MeasureTrace.dll</HintPath>
+    <Reference Include="MeasureTrace, Version=1.0.5931.7139, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>packages\MeasureTrace.1.0.5931.7139-alpha\lib\net461\MeasureTrace.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="Microsoft.Diagnostics.Tracing.TraceEvent, Version=1.0.41.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
