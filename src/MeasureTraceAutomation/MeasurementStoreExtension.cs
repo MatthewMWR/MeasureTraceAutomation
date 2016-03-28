@@ -47,6 +47,14 @@ namespace MeasureTraceAutomation
             }
         }
 
+        public static MeasuredTrace GetTraceWithRecordsFromSparseTrace(this MeasurementStore store, MeasuredTrace measuredTrace)
+        {
+            return
+                store.Traces.Include(t => t.ProcessingRecords)
+                    .Where(t => t.IsSameDataPackatge(measuredTrace))
+                    .SingleOrDefault();
+        }
+
         public static DbSet<TEntity> NewDynamicSet<TEntity>(this MeasurementStore store, TEntity entity)
             where TEntity : class, IMeasurement
         {
