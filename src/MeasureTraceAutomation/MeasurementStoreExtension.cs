@@ -28,13 +28,15 @@ namespace MeasureTraceAutomation
         public static void HydrateTraceMeasurements(this MeasurementStore store, MeasuredTrace measuredTrace)
         {
             foreach (
-                var mm in
+                var mType in
                     store.Model.GetEntityTypes()
-                        .Where(et => et.ClrType.GetInterfaces().Contains(typeof (IMeasurement)))
-                        .Select(mtype => NewDynamicSet(store, (IMeasurement) Activator.CreateInstance(mtype.ClrType)))
-                        .SelectMany(set => set.Where(m => m.Trace == measuredTrace)))
+                        .Where(et => et.ClrType.GetInterfaces().Contains(typeof (IMeasurement))))
             {
-                measuredTrace.AddMeasurement(mm);
+                var set = NewDynamicSet(store, (IMeasurement)Activator.CreateInstance(mType.ClrType));
+                foreach (var m in set.Where(mm => measuredTrace.IsSameDataPackatge(mm.Trace)))
+                {
+                    measuredTrace.AddMeasurement(m);
+                }
             }
         }
 
@@ -61,13 +63,14 @@ namespace MeasureTraceAutomation
             return store.Set<TEntity>();
         }
 
-        public static IEnumerable<ProcessingRecord> GetLatestProcessingRecordForTraceByState(
+        public static IEnumerable<MeasuredTrace> GetTraceByState(
             this MeasurementStore store, ProcessingState processingState)
         {
-            return store.ProcessingRecords.GroupBy(pr => pr.MeasuredTrace.PackageFileName)
+            return store.ProcessingRecords.Include(pr => pr.MeasuredTrace)
+                .GroupBy(pr => pr.MeasuredTrace.PackageFileName)
                 .Where(gpr => gpr.AsEnumerable().Latest().ProcessingState == processingState)
-                .Select(gpr => gpr.Latest())
-                .Include(pr => pr.MeasuredTrace);
+                .Select(gpr => gpr.Latest().MeasuredTrace);
+
         }
 
         public static ProcessingRecord Latest(this IEnumerable<ProcessingRecord> records)

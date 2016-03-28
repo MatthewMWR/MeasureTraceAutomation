@@ -5,7 +5,7 @@ namespace MeasureTraceAutomation
 {
     public static class MeasuredTraceExtension
     {
-        public static bool IsSameDataPackatge(this MeasuredTrace traceX, MeasuredTrace traceY)
+        public static bool IsSameDataPackatge(this MeasureTrace.TraceModel.Trace traceX, MeasureTrace.TraceModel.Trace traceY)
         {
             if (traceX == null || traceY == null) return false;
             return string.Equals(traceX.PackageFileName, traceY.PackageFileName, StringComparison.OrdinalIgnoreCase);
