@@ -55,8 +55,8 @@
       <HintPath>..\MeasureTraceAutomation\packages\JetBrains.Annotations.10.0.0\lib\net20\JetBrains.Annotations.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="MeasureTrace, Version=1.0.5931.7139, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\MeasureTraceAutomation\packages\MeasureTrace.1.0.5931.7139-alpha\lib\net461\MeasureTrace.dll</HintPath>
+    <Reference Include="MeasureTrace, Version=1.0.5932.4794, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\MeasureTraceAutomation\packages\MeasureTrace.1.0.5932.4794-alpha\lib\net461\MeasureTrace.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="Microsoft.CSharp" />

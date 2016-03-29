@@ -66,7 +66,6 @@ namespace MeasureTraceAutomation
             modelBuilder.Entity<ProcessingRecord>().Property<string>("PackageFileName").Metadata.IsShadowProperty = true;
             modelBuilder.Entity<MeasuredTrace>(b =>
             {
-                b.Ignore(t => t.TraceAttributes);
                 b.HasKey(trace => trace.PackageFileName);
                 b.HasMany(typeof (ProcessingRecord), "ProcessingRecords")
                     .WithOne("MeasuredTrace")

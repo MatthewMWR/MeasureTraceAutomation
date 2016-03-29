@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Linq.Expressions;
 using MeasureTrace.TraceModel;
 using Microsoft.Data.Entity;
 
@@ -10,21 +11,6 @@ namespace MeasureTraceAutomation
 {
     public static class MeasurementStoreExtension
     {
-        public static string GetDiscoveredAtPath(this MeasurementStore store, MeasuredTrace measuredTrace)
-        {
-            var dbtrace = store.Traces.FirstOrDefault(t => t == measuredTrace);
-            if (dbtrace == null) return string.Empty;
-            return
-                dbtrace.TraceAttributes.Where(
-                    ta =>
-                        string.Equals(ta.Name, MeasurementStore.NameOfProcessingStateAttribute,
-                            StringComparison.OrdinalIgnoreCase))
-                    .Where(ta => ta.WholeNumberValue == (int) ProcessingState.Discovered)
-                    .OrderBy(ta => ta.DateTimeValue)
-                    .Select(ta => Path.Combine(ta.StringValue, ta.Trace.PackageFileName))
-                    .Last();
-        }
-
         public static void HydrateTraceMeasurements(this MeasurementStore store, MeasuredTrace measuredTrace)
         {
             foreach (
@@ -66,11 +52,33 @@ namespace MeasureTraceAutomation
         public static IEnumerable<MeasuredTrace> GetTraceByState(
             this MeasurementStore store, ProcessingState processingState)
         {
-            return store.ProcessingRecords.Include(pr => pr.MeasuredTrace)
-                .GroupBy(pr => pr.MeasuredTrace.PackageFileName)
-                .Where(gpr => gpr.AsEnumerable().Latest().ProcessingState == processingState)
-                .Select(gpr => gpr.Latest().MeasuredTrace);
+            // TODO This is super expensive right now because we are doing most of the filtering on the caller side
+            // after returing lots of excess data from the db. Unfortunately this was the only ready workaround
+            // to an EF bug in query compilation
+            foreach (var trace in store.Traces.Include(t=>t.ProcessingRecords))
+            {
+                if(trace.ProcessingRecords.Latest().ProcessingState == processingState) yield return trace;
+            }
+        }
 
+        public static MeasuredTrace GetTraceByName(
+            this MeasurementStore store, string packageFileName, bool includeMeasurements = false)
+        {
+            var targetTrace = store.Traces.Include(t => t.ProcessingRecords)
+                .Where(t => string.Equals(t.PackageFileName, packageFileName, StringComparison.OrdinalIgnoreCase))
+                .SingleOrDefault();
+            if(includeMeasurements) store.HydrateTraceMeasurements(targetTrace);
+            return targetTrace;
+        }
+
+        public static IEnumerable<MeasuredTrace> GetTraceByFilter(
+            this MeasurementStore store, Func<MeasuredTrace,bool> filter, bool includeMeasurements = false)
+        {
+            foreach (var trace in store.Traces.Include(t => t.ProcessingRecords).Where(t => filter(t)))
+            {
+                if (includeMeasurements) store.HydrateTraceMeasurements(trace);
+                yield return trace;
+            }
         }
 
         public static ProcessingRecord Latest(this IEnumerable<ProcessingRecord> records)

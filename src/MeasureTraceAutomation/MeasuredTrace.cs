@@ -8,6 +8,11 @@ namespace MeasureTraceAutomation
     {
         public ICollection<ProcessingRecord> ProcessingRecords { get; set; }
 
+        public MeasuredTrace()
+        {
+            ProcessingRecords = new List<ProcessingRecord>();
+        }
+
         //public override bool Equals(object obj)
         //{
         //    var incoming = obj as MeasuredTrace;
