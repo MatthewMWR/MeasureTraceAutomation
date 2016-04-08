@@ -6,6 +6,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using MeasureTrace.TraceModel;
 using Microsoft.Data.Entity;
+using Microsoft.Data.Entity.Metadata;
 
 namespace MeasureTraceAutomation
 {
@@ -13,23 +14,42 @@ namespace MeasureTraceAutomation
     {
         public static void HydrateTraceMeasurements(this MeasurementStore store, MeasuredTrace measuredTrace)
         {
-            foreach (
-                var mType in
-                    store.Model.GetEntityTypes()
-                        .Where(et => et.ClrType.GetInterfaces().Contains(typeof (IMeasurement))))
+            // TODO Go back to dynamically discovering types rather than using hard coded list. For now this works better with EF
+            // TODO Move filtering to db engine rather than client side. This is super inneficient, but working around EF
+            foreach (var m in store.Set<CpuSampled>().Include(m => m.Trace).Where(m => string.Equals(m.Trace.PackageFileName, measuredTrace.PackageFileName, StringComparison.OrdinalIgnoreCase)))
             {
-                var set = NewDynamicSet(store, (IMeasurement)Activator.CreateInstance(mType.ClrType));
-                foreach (var m in set.Where(mm => measuredTrace.IsSameDataPackatge(mm.Trace)))
-                {
-                    measuredTrace.AddMeasurement(m);
-                }
+                measuredTrace.AddMeasurement(m);
+            }
+            foreach (var m in store.Set<BootPhase>().Include(m => m.Trace).Where(m => string.Equals(m.Trace.PackageFileName, measuredTrace.PackageFileName, StringComparison.OrdinalIgnoreCase)))
+            {
+                measuredTrace.AddMeasurement(m);
+            }
+            foreach (var m in store.Set<WinlogonSubscriberTask>().Include(m => m.Trace).Where(m => string.Equals(m.Trace.PackageFileName, measuredTrace.PackageFileName, StringComparison.OrdinalIgnoreCase)))
+            {
+                measuredTrace.AddMeasurement(m);
+            }
+            foreach (var m in store.Set<DiskIo>().Include(m => m.Trace).Where(m => string.Equals(m.Trace.PackageFileName, measuredTrace.PackageFileName, StringComparison.OrdinalIgnoreCase)))
+            {
+                measuredTrace.AddMeasurement(m);
+            }
+            foreach (var m in store.Set<LogicalDisk>().Include(m => m.Trace).Where(m => string.Equals(m.Trace.PackageFileName, measuredTrace.PackageFileName, StringComparison.OrdinalIgnoreCase)))
+            {
+                measuredTrace.AddMeasurement(m);
+            }
+            foreach (var m in store.Set<PhysicalDisk>().Include(m => m.Trace).Where(m => string.Equals(m.Trace.PackageFileName, measuredTrace.PackageFileName, StringComparison.OrdinalIgnoreCase)))
+            {
+                measuredTrace.AddMeasurement(m);
+            }
+            foreach (var m in store.Set<TraceAttribute>().Include(m => m.Trace).Where(m => string.Equals(m.Trace.PackageFileName, measuredTrace.PackageFileName, StringComparison.OrdinalIgnoreCase)))
+            {
+                measuredTrace.AddMeasurement(m);
             }
         }
 
         public static void HydrateTraceMeasurements<TMeasurement>(this MeasurementStore store,
             MeasuredTrace measuredTrace) where TMeasurement : class, IMeasurement
         {
-            foreach (var mm in store.Set<TMeasurement>().Where(m => m.Trace == measuredTrace))
+            foreach (var mm in store.Set<TMeasurement>().Include(m => m.Trace).Where(m => m.Trace == measuredTrace))
             {
                 measuredTrace.AddMeasurement(mm);
             }
