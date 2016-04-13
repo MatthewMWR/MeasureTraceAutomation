@@ -12,18 +12,9 @@ using Microsoft.Data.Entity;
 
 namespace MeasureTraceAutomation
 {
-    public static class DoWork
+    internal static class AutomationTasks
     {
-        public static void InvokeProcessingOnce(ProcessingConfig processingConfig, MeasurementStoreConfig storeConfig)
-        {
-            RichLog.Log.StartProcessEndToEnd(0);
-            DiscoverOneBatch(processingConfig, storeConfig);
-            var moved = MoveOneBatch(processingConfig, storeConfig);
-            var measured = MeasureOneBatch(processingConfig, storeConfig);
-            RichLog.Log.StopProcessEndToEnd(moved, measured);
-        }
-
-        internal static int DiscoverOneBatch(ProcessingConfig processingConfig, MeasurementStoreConfig storeConfig)
+        public static int DiscoverOneBatch(ProcessingConfig processingConfig, MeasurementStoreConfig storeConfig)
         {
             var totalDiscoveries = 0;
             using (var store = new MeasurementStore(storeConfig))
@@ -53,14 +44,6 @@ namespace MeasureTraceAutomation
                             }
                             var dbTrace = store.Traces.Include(t => t.ProcessingRecords).First(t => t.IsSameDataPackage(sparseTrace));
                             var lastPr = dbTrace.ProcessingRecords.Latest();
-                            //var lastPr =
-                            //    store.Set<ProcessingRecord>().Include(pr => pr.MeasuredTrace)
-                            //        .Where(
-                            //            pr =>
-                            //                string.Equals(dbTrace.PackageFileName, pr.MeasuredTrace.PackageFileName,
-                            //                    StringComparison.OrdinalIgnoreCase))
-                            //        .OrderBy(pr => pr.StateChangeTime)
-                            //        .LastOrDefault();
                             if (lastPr == null || lastPr.ProcessingState != ProcessingState.Discovered)
                             {
                                 store.Set<ProcessingRecord>().Add(new ProcessingRecord
@@ -82,7 +65,7 @@ namespace MeasureTraceAutomation
             return totalDiscoveries;
         }
 
-        internal static int MoveOneBatch(ProcessingConfig processingConfig, MeasurementStoreConfig storeConfig)
+        public static int MoveOneBatch(ProcessingConfig processingConfig, MeasurementStoreConfig storeConfig)
         {
             RichLog.Log.StartMoveFiles();
             var movedCount = 0;
@@ -135,7 +118,7 @@ namespace MeasureTraceAutomation
             return movedCount;
         }
 
-        internal static int MeasureOneBatch(ProcessingConfig processingConfig, MeasurementStoreConfig storeConfig)
+        public static int MeasureOneBatch(ProcessingConfig processingConfig, MeasurementStoreConfig storeConfig)
         {
             RichLog.Log.StartMeasureAndSaveTraces();
             var measuredCount = 0;
@@ -156,14 +139,22 @@ namespace MeasureTraceAutomation
                     measuringTasks.Add(
                         Task.Run(() =>
                         {
-                            using (var tj = new TraceJob(t))
+                            Trace traceOut = null;
+                            try
                             {
-                                tj.StageForProcessing();
-                                tj.RegisterCalipersAllKnown();
-                                var traceOut = tj.Measure();
+                                using (var tj = new TraceJob(t))
+                                {
+                                    tj.StageForProcessing();
+                                    tj.RegisterCalipersAllKnown();
+                                    traceOut = tj.Measure();
+                                }
+                            }
+                            finally
+                            {
+                                measuredCount++;
+                                if (traceOut == null) traceOut = t;
                                 measuringResults.Add(traceOut);
                             }
-                            measuredCount++;
                         }));
                 }
             }
@@ -176,11 +167,6 @@ namespace MeasureTraceAutomation
                 foreach (var e in ae.InnerExceptions)
                 {
                     RichLog.Log.TraceAnalyzeFailureDuringProcessEndToEnd(e.Message, e.ToString());
-                    measuringResults.Add(new MeasuredTrace()
-                    {
-                        PackageFileNameFull = e.Message,
-                        PackageFileName = Path.GetFileName(e.Message)
-                    });
                 }
             }
             using (var store = new MeasurementStore(storeConfig))
@@ -203,13 +189,11 @@ namespace MeasureTraceAutomation
             return measuredCount;
         }
 
-
-        internal static string CalculateDestinationPath(string fileSourcePath, ProcessingConfig processingConfig,
+        public static string CalculateDestinationPath(string fileSourcePath, ProcessingConfig processingConfig,
             bool prepareSubDirsAsNeeded)
         {
             var relativeName = new FileInfo(fileSourcePath).Name;
             var destinationRootDir = processingConfig.DestinationDataPath;
-            //  TODO FUTURE: Using last modified for now but this is fragile -- switch to package format aware dating
             var tempTrace = new Trace();
             var packageType = TraceJobExtension.ResolvePackageType(fileSourcePath);
             var adapter = TraceJobExtension.GetPackageAdapter(packageType);

@@ -1,6 +1,5 @@
 ﻿// Copyright and license at: https://github.com/MatthewMWR/MeasureTraceAutomation/blob/master/LICENSE
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -75,7 +74,7 @@ namespace MeasureTraceAutomationTests05
                 store.Database.EnsureDeleted();
                 store.Database.EnsureCreated();
             }
-            DoWork.InvokeProcessingOnce(processingConfig, storeConfig);
+            Automate.InvokeProcessingOnce(processingConfig, storeConfig);
             using (var store = new MeasurementStore(storeConfig))
             {
                 Assert.True(store.Traces.Count() == testCopyCount);
@@ -86,9 +85,9 @@ namespace MeasureTraceAutomationTests05
                 var movedCount = store.ProcessingRecords.Count(pr => pr.ProcessingState == ProcessingState.Moved);
                 Assert.True(movedCount == processingConfig.ParallelMovesThrottle);
             }
-            DoWork.InvokeProcessingOnce(processingConfig, storeConfig);
-            DoWork.InvokeProcessingOnce(processingConfig, storeConfig);
-            DoWork.InvokeProcessingOnce(processingConfig, storeConfig);
+            Automate.InvokeProcessingOnce(processingConfig, storeConfig);
+            Automate.InvokeProcessingOnce(processingConfig, storeConfig);
+            Automate.InvokeProcessingOnce(processingConfig, storeConfig);
             using (var store = new MeasurementStore(storeConfig))
             {
                 var measuredCount = store.Traces

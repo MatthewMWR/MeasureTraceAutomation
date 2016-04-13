@@ -134,7 +134,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="DoWork.cs" />
+    <Compile Include="Automate.cs" />
+    <Compile Include="AutomationTasks.cs" />
     <Compile Include="Logging\ForwardMeasureTraceLogging.cs" />
     <Compile Include="Logging\RichLog.cs" />
     <Compile Include="Logging\RichLogProcessingEvents.cs" />

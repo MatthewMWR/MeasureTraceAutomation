@@ -1,4 +1,5 @@
 ﻿[Reflection.Assembly]::LoadFrom($(Join-Path $psscriptroot "MeasureTraceAutomation.dll"))
+$storeExt = [MeasureTraceAutomation.MeasurementStoreExtension]
 
 Set-StrictMode -Version Latest
 
@@ -88,7 +89,7 @@ function Invoke-MtaProcessing{
         [MeasureTraceAutomation.ProcessingConfig]$ProcessingConfig
 
     )
-    [MeasureTraceAutomation.DoWork]::InvokeProcessingOnce($ProcessingConfig, $StoreConfig)
+    [MeasureTraceAutomation.Automate]::InvokeProcessingOnce($ProcessingConfig, $StoreConfig)
 }
 
 function Get-MtaLog{
