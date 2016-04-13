@@ -46,20 +46,21 @@ namespace MeasureTraceAutomation
                                 PackageFileNameFull =
                                     CalculateDestinationPath(fileSystemEntryPath, processingConfig, true)
                             };
-                            if (!store.Traces.Any(t => t.IsSameDataPackatge(sparseTrace)))
+                            if (!store.Traces.Any(t => t.IsSameDataPackage(sparseTrace)))
                             {
                                 store.Traces.Add(sparseTrace);
                                 store.SaveChanges();
                             }
-                            var dbTrace = store.Traces.First(t => t.IsSameDataPackatge(sparseTrace));
-                            var lastPr =
-                                store.Set<ProcessingRecord>().Include(pr => pr.MeasuredTrace)
-                                    .Where(
-                                        pr =>
-                                            string.Equals(dbTrace.PackageFileName, pr.MeasuredTrace.PackageFileName,
-                                                StringComparison.OrdinalIgnoreCase))
-                                    .OrderBy(pr => pr.StateChangeTime)
-                                    .LastOrDefault();
+                            var dbTrace = store.Traces.Include(t => t.ProcessingRecords).First(t => t.IsSameDataPackage(sparseTrace));
+                            var lastPr = dbTrace.ProcessingRecords.Latest();
+                            //var lastPr =
+                            //    store.Set<ProcessingRecord>().Include(pr => pr.MeasuredTrace)
+                            //        .Where(
+                            //            pr =>
+                            //                string.Equals(dbTrace.PackageFileName, pr.MeasuredTrace.PackageFileName,
+                            //                    StringComparison.OrdinalIgnoreCase))
+                            //        .OrderBy(pr => pr.StateChangeTime)
+                            //        .LastOrDefault();
                             if (lastPr == null || lastPr.ProcessingState != ProcessingState.Discovered)
                             {
                                 store.Set<ProcessingRecord>().Add(new ProcessingRecord
@@ -157,6 +158,7 @@ namespace MeasureTraceAutomation
                         {
                             using (var tj = new TraceJob(t))
                             {
+                                tj.StageForProcessing();
                                 tj.RegisterCalipersAllKnown();
                                 var traceOut = tj.Measure();
                                 measuringResults.Add(traceOut);
@@ -165,7 +167,22 @@ namespace MeasureTraceAutomation
                         }));
                 }
             }
-            Task.WaitAll(measuringTasks.ToArray());
+            try
+            {
+                Task.WaitAll(measuringTasks.ToArray());
+            }
+            catch (AggregateException ae)
+            {
+                foreach (var e in ae.InnerExceptions)
+                {
+                    RichLog.Log.TraceAnalyzeFailureDuringProcessEndToEnd(e.Message, e.ToString());
+                    measuringResults.Add(new MeasuredTrace()
+                    {
+                        PackageFileNameFull = e.Message,
+                        PackageFileName = Path.GetFileName(e.Message)
+                    });
+                }
+            }
             using (var store = new MeasurementStore(storeConfig))
             {
                 foreach (var t in measuringResults)
@@ -193,7 +210,11 @@ namespace MeasureTraceAutomation
             var relativeName = new FileInfo(fileSourcePath).Name;
             var destinationRootDir = processingConfig.DestinationDataPath;
             //  TODO FUTURE: Using last modified for now but this is fragile -- switch to package format aware dating
-            var fileDate = new FileInfo(fileSourcePath).LastWriteTime;
+            var tempTrace = new Trace();
+            var packageType = TraceJobExtension.ResolvePackageType(fileSourcePath);
+            var adapter = TraceJobExtension.GetPackageAdapter(packageType);
+            adapter.PopulateTraceAttributesFromFileName(tempTrace, fileSourcePath);
+            var fileDate = tempTrace.TracePackageTime;
             var subDirToken = fileDate.ToString(processingConfig.DestinationSubDirPattern);
             var destinationFolderPath = Path.Combine(destinationRootDir, subDirToken);
             if (prepareSubDirsAsNeeded) Directory.CreateDirectory(destinationFolderPath);

@@ -59,7 +59,7 @@ namespace MeasureTraceAutomation
         {
             return
                 store.Traces.Include(t => t.ProcessingRecords)
-                    .Where(t => t.IsSameDataPackatge(measuredTrace))
+                    .Where(t => t.IsSameDataPackage(measuredTrace))
                     .SingleOrDefault();
         }
 
@@ -103,7 +103,7 @@ namespace MeasureTraceAutomation
 
         public static ProcessingRecord Latest(this IEnumerable<ProcessingRecord> records)
         {
-            return records.OrderBy(r => r.StateChangeTime).Last();
+            return records.OrderBy(r => r.StateChangeTime).LastOrDefault();
         }
     }
 }

@@ -31,20 +31,24 @@ function Get-MtaTrace{
     param(
         [Parameter(Mandatory=$true)]
         [MeasureTraceAutomation.MeasurementStoreConfig]$StoreConfig,
+        [Parameter(Mandatory=$true, ParameterSetName="PackageFileName")]
         [string]$PackageFileName,
-        [switch]$IncludeProcessingRecords,
+        [Parameter(Mandatory=$true, ParameterSetName="FilterScript")]
+        [scriptblock]$FilterScript,
+        [Parameter(Mandatory=$true, ParameterSetName="ProcessingState")]
+        [MeasureTraceAutomation.ProcessingState]$ProcessingState,
         [switch]$IncludeMeasurements
     )
     $store = New-Object -Type MeasureTraceAutomation.MeasurementStore -Arg $StoreConfig
-    if( [string]::IsNullOrEmpty($PackageFileName)){
-        $store.Traces.ForEach( {[MeasureTraceAutomation.MeasuredTrace]$_} )
+    if($PSCmdlet.ParameterSetName -eq "PackageFileName"){
+        $storeExt::GetTraceByFilter($store, {$args[0].PackageFileName -like $PackageFileName}, $IncludeMeasurements)
     }
-    else{
-        $store.Traces.Where( {
-        ($_.PackageFileName -eq $PackageFileName )
-        }).Foreach( {[MeasureTraceAutomation.MeasuredTrace]$_} )
+    elseif($PSCmdlet.ParameterSetName -eq "FilterScript"){
+        $storeExt::GetTraceByFilter($store, $FilterScript, $IncludeMeasurements)
     }
-    
+    elseif($PSCmdlet.ParameterSetName -eq "ProcessingState"){
+        $storeExt::GetTraceByState($store, $ProcessingState)
+    }
     $store.Dispose()
 }
 
