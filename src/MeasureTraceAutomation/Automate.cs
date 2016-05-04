@@ -1,5 +1,6 @@
 ﻿// Copyright and license at: https://github.com/MatthewMWR/MeasureTraceAutomation/blob/master/LICENSE
 
+using System.Diagnostics;
 using MeasureTraceAutomation.Logging;
 
 namespace MeasureTraceAutomation
@@ -9,6 +10,7 @@ namespace MeasureTraceAutomation
         public static void InvokeProcessingOnce(ProcessingConfig processingConfig, MeasurementStoreConfig storeConfig)
         {
             RichLog.Log.StartProcessEndToEnd(0);
+            ForwardMeasureTraceLogging.AddListenerAsNeeded();
             AutomationTasks.DiscoverOneBatch(processingConfig, storeConfig);
             var moved = AutomationTasks.MoveOneBatch(processingConfig, storeConfig);
             var measured = AutomationTasks.MeasureOneBatch(processingConfig, storeConfig);

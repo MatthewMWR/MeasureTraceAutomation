@@ -101,6 +101,7 @@ namespace MeasureTraceAutomationTests05
                 Assert.True(measuredCountByThirdPath == testCopyCount);
                 Assert.True(store.GetTraceByName("copy1.zip", false) != null);
                 Assert.True(store.GetTraceByFilter(t => t.ProcessingRecords.Count == 3).AsEnumerable().Count() == testCopyCount);
+                Assert.NotEmpty(store.GetTraceByName("copy1.zip", true).GetMeasurements<DiskIo>());
             }
         }
 
